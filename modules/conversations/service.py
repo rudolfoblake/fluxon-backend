@@ -1,3 +1,5 @@
+from modules.protection.service import ProtectionService
+import asyncio
 import uuid
 from loguru import logger
 from modules.whatsapp.schemas import EvolutionWebhookPayload
@@ -7,7 +9,6 @@ from modules.orchestration.service import OrchestratorService
 from modules.crm.hubspot_service import HubSpotService
 from core.repository import SessionRepository
 from core.retry_service import RetryService
-import asyncio
 
 class ConversationService:
     def __init__(self):
@@ -17,6 +18,7 @@ class ConversationService:
         self.repo = SessionRepository()
         self.normalizer = WhatsAppNormalizer()
         self.retry = RetryService()
+        self.protection = ProtectionService()
 
     async def process_webhook(self, payload: EvolutionWebhookPayload):
         correlation_id = str(uuid.uuid4())
@@ -28,6 +30,18 @@ class ConversationService:
 
         phone = norm_msg.phone
         message_text = norm_msg.text
+
+        # 0.1 Camada de Proteção e Sanitização (Pre-AI)
+        protection = await self.protection.validate_input(message_text)
+        if not protection.is_safe:
+            logger.warning(f"[{correlation_id}] Proteção Ativada: {protection.reason}")
+            # Se a proteção sugerir uma resposta, enviamos e interrompemos o processamento de IA
+            if protection.suggested_response:
+                await self.whatsapp_client.send_message(phone, protection.suggested_response)
+                return {"status": "blocked", "reason": protection.reason}
+
+        # Usar texto sanitizado se necessário
+        processed_text = protection.sanitized_text or message_text
         
         logger.info(f"[{correlation_id}] FLUXON Intelligence: Analisando {norm_msg.type} de {phone}")
 
@@ -37,11 +51,12 @@ class ConversationService:
         # Criar entrada de histórico
         history_entry = {
             "role": "user", 
-            "content": message_text, 
+            "content": processed_text, 
             "timestamp": norm_msg.timestamp,
             "type": norm_msg.type,
             "correlation_id": correlation_id,
-            "media_metadata": norm_msg.media_metadata
+            "media_metadata": norm_msg.media_metadata,
+            "threat_level": protection.threat_level
         }
         
         # Garantir que history seja uma lista e adicionar entrada
@@ -51,7 +66,7 @@ class ConversationService:
 
         # 2. Orquestração: Análise de Inteligência Operacional Profunda
         try:
-            analysis = await self.orchestrator.analyze_input(message_text, session.operational_context)
+            analysis = await self.orchestrator.analyze_input(processed_text, session.operational_context)
             
             # Merge de Inteligência Específica Fluxon
             operational_context = dict(session.operational_context) if session.operational_context else {}
@@ -83,15 +98,26 @@ class ConversationService:
 
         # 3. Detecção de Escalação (Human Handoff)
         escalation = await self.orchestrator.detect_escalation(session.operational_context)
+        
+        # Check for forced escalation from fatigue/engagement
+        if analysis.get("force_escalation"):
+            escalation["required"] = True
+            escalation["reason"] = analysis.get("escalation_reason")
+
         session.escalation_status = escalation
 
         if escalation.get("required"):
             logger.warning(f"[{correlation_id}] ESCALAÇÃO DETECTADA: {escalation.get('reason')}")
-            response_text = "Entendo a complexidade do seu cenário. Vou encaminhar nossa conversa agora mesmo para um de nossos especialistas em automação estratégica para uma análise personalizada."
+            response_text = "Entendo perfeitamente. Para não tomarmos muito seu tempo, vou encaminhar agora nossa conversa para um de nossos especialistas. Ele analisará esses pontos e te dará um retorno estratégico."
         else:
             # 4. Decisão Dinâmica do Próximo Objetivo
             pending = [obj for obj in session.pending_objectives if obj not in session.collected_data]
-            next_objective = await self.orchestrator.decide_next_objective(session.operational_context, pending)
+            
+            # Conversational Escape: If fatigue is high or engagement low, prioritize finishing or handoff
+            if analysis.get("engagement", {}).get("fatigue") or len(session.history) > 10:
+                 next_objective = "COMPLETE"
+            else:
+                 next_objective = await self.orchestrator.decide_next_objective(session.operational_context, pending)
 
             if next_objective == "COMPLETE":
                 session.state = "QUALIFIED"
@@ -100,14 +126,20 @@ class ConversationService:
                 session.state = f"WORKING_{next_objective.upper()}"
                 response_text = await self.orchestrator.generate_response(next_objective, session.operational_context)
 
-        # 5. Sincronização Estratégica com CRM (Executiva)
+        # 5. Sincronização Estratégica com CRM (Executiva & Estruturada)
         try:
             summary = await self.orchestrator.generate_executive_summary(session.operational_context)
+            
+            # Enriquecimento Estruturado HubSpot v9
             hubspot_props = {
                 "firstname": norm_msg.push_name or "Lead Qualificado",
                 "phone": phone,
                 "annualrevenue": str(session.collected_data.get("revenue", "0")),
                 "numberofemployees": str(session.collected_data.get("team_size", "0")),
+                "estimated_budget": str(session.collected_data.get("budget", "unknown")),
+                "lead_temperature": str(session.operational_context.get("lead_profile", {}).get("temperature", "warm")),
+                "operational_maturity": str(session.operational_context.get("lead_profile", {}).get("type", "unknown")),
+                "discard_reason": str(analysis.get("discard_reason", "")),
                 "lifecyclestage": "lead",
                 "notes_last_analysis": summary
             }
@@ -116,8 +148,12 @@ class ConversationService:
             logger.error(f"[{correlation_id}] CRM Sync Error: {e}. Scheduling retry.")
             await self.retry.add_task("hubspot_sync", {"phone": phone, "props": hubspot_props})
 
-        # 6. Execução da Resposta
+        # 6. Execução da Resposta com Typing Simulation
         try:
+            # Simulate typing delay (approx 1s per 50 chars, max 5s)
+            typing_delay = min(len(response_text) / 50, 5)
+            await asyncio.sleep(typing_delay)
+            
             await self.whatsapp_client.send_message(phone, response_text)
             
             # Atualizar histórico com a resposta do assistente

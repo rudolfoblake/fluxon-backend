@@ -19,33 +19,40 @@ class OrchestratorService:
         self.brand_voice = BrandVoiceService()
 
     async def analyze_input(self, text: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Analisa o input para extrair inteligência operacional profunda com validação."""
+        """Analisa o input para extrair inteligência operacional profunda com validação e fadiga."""
         prompt = AIPrompts.ANALYSIS_EXTRACTOR.format(text=text, context=json.dumps(context))
         try:
             response = await self.ai_router.generate_text(prompt, task_type="operational_analysis")
             content = response.content.strip().replace("```json", "").replace("```", "")
             data = json.loads(content)
             
-            # Validação Leve de Segurança e Alucinação
-            validated_data = self._validate_analysis(data)
-            return validated_data
+            # Validação e Processamento de Fadiga/Escape
+            data = self._process_engagement(data)
+            return self._validate_analysis(data)
         except Exception as e:
             logger.error(f"Orchestrator Analysis Error: {e}")
-            return {"signals": [], "pains": [], "lead_profile": "unknown", "structured_data": {}}
+            return {"signals": [], "engagement": {"fatigue": False}, "lead_profile": {"temperature": "warm"}, "structured_data": {}}
+
+    def _process_engagement(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Detecta sinais de escape rápido e fadiga."""
+        engagement = data.get("engagement", {})
+        if engagement.get("fatigue") or engagement.get("vague") or engagement.get("score", 10) < 3:
+            # Forçar escalação se houver fadiga ou desengajamento
+            data["force_escalation"] = True
+            data["escalation_reason"] = "Conversational fatigue or low engagement detected."
+        return data
 
     def _validate_analysis(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Valida se os dados extraídos pela IA fazem sentido operacional para a Fluxon."""
-        # Garantir campos obrigatórios Fluxon
-        required_fields = ["signals", "pains", "current_stack", "automation_opportunity", "lead_profile", "structured_data"]
+        # Garantir campos obrigatórios Fluxon v9
+        required_fields = ["signals", "engagement", "lead_profile", "structured_data"]
         for field in required_fields:
             if field not in data:
-                data[field] = [] if isinstance(data.get(field), list) else {} if "data" in field else "unknown"
+                data[field] = [] if isinstance(data.get(field), list) else {}
         
         # Limpar sinais alucinados
         if isinstance(data.get("signals"), list):
             data["signals"] = [s[:50] for s in data["signals"] if len(str(s)) > 2]
-        if isinstance(data.get("pains"), list):
-            data["pains"] = [p[:100] for p in data["pains"] if len(str(p)) > 2]
         
         return data
 

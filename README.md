@@ -93,6 +93,21 @@ Todos os leads aparecem na aba "Contatos" do seu HubSpot.
 
 ## 📝 Changelog
 
+### [v0.10.0] - 2026-05-26 (Input Protection & AI Safety)
+- **Prompt Injection Defense**: Detecção e sanitização de padrões de injeção de instruções (Instruction Override, Role Manipulation).
+- **Oversized Message Handling**: Bloqueio de mensagens excessivamente grandes (>2000 chars) para proteger o consumo de tokens.
+- **Graceful Redirection**: Respostas humanizadas e premium quando tentativas de abuso são detectadas.
+- **Pre-AI Sanitization**: Limpeza de inputs suspeitos antes de chegarem à camada de orquestração e LLMs.
+- **Threat Level Tracking**: Monitoramento do nível de risco por mensagem no histórico da sessão.
+
+### [v0.9.0] - 2026-05-26 (Usability & Conversational Experience)
+- **Fast Escape Logic**: O bot detecta desengajamento ou fadiga e escala para humano antes de perder o lead.
+- **Conversational Fatigue Detection**: Análise de sinais de frustração ou respostas vagas para simplificar a interação.
+- **Identity Transparency**: O assistente se identifica como IA consultiva desde o início para gerar confiança.
+- **Humanized Pacing**: Simulação de digitação (typing delay) baseada no tamanho da resposta para um ritmo natural.
+- **Structured CRM Enrichment**: Mapeamento de propriedades customizadas no HubSpot (Budget, Maturity, Temperature, Discard Reason).
+- **Executive Operational Consultant**: Refinamento do tom de voz para um comportamento de consultor sênior.
+
 ### [v0.8.0] - 2026-05-26 (Production Hardening & Clean Architecture)
 - **Clean Architecture Refactor**: Separação completa de `core/database.py` e `core/models.py`.
 - **SQLAlchemy State Fix**: Implementação de re-atribuição explícita de campos JSON para garantir persistência robusta.
