@@ -46,17 +46,20 @@ class ConversationService:
         try:
             analysis = await self.orchestrator.analyze_input(message_text, session.operational_context)
             
-            # Merge de Inteligência
+            # Merge de Inteligência Específica Fluxon
             session.operational_context["signals"] = list(set(session.operational_context.get("signals", []) + analysis.get("signals", [])))
             session.operational_context["pains"] = list(set(session.operational_context.get("pains", []) + analysis.get("pains", [])))
+            session.operational_context["current_stack"] = list(set(session.operational_context.get("current_stack", []) + analysis.get("current_stack", [])))
             session.operational_context["lead_profile"] = analysis.get("lead_profile", session.operational_context.get("lead_profile"))
-            session.automation_insights = list(set(session.automation_insights + analysis.get("automation_opportunities", [])))
-            session.lead_score = {"urgency": analysis.get("urgency_score", 5)}
             
-            # Update dados estruturados
+            # Automações detectadas
+            if analysis.get("automation_opportunity"):
+                session.automation_insights.append(analysis.get("automation_opportunity"))
+            
+            # Update dados estruturados (Revenue, etc)
             session.collected_data.update(analysis.get("structured_data", {}))
             
-            logger.info(f"[{correlation_id}] Perfil Detectado: {session.operational_context['lead_profile']} | Urgência: {session.lead_score['urgency']}")
+            logger.info(f"[{correlation_id}] Fluxon Intelligence: Perfil {session.operational_context['lead_profile']} | Sinais {analysis.get('signals')}")
         except Exception as e:
             logger.error(f"[{correlation_id}] AI Analysis Failed: {e}")
             # Agendar retry para análise profunda depois se necessário, mas seguir com fluxo básico

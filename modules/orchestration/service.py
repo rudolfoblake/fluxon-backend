@@ -7,11 +7,11 @@ import json
 
 class OrchestratorService:
     OBJECTIVES = [
-        "identify_operational_pain",
-        "identify_automation_opportunity",
-        "identify_team_size",
-        "identify_revenue_impact",
-        "identify_urgency"
+        "identify_bottleneck",        # Identificar gargalos e processos manuais
+        "identify_operational_pain",   # Identificar dores como retrabalho ou falta de visibilidade
+        "identify_tech_stack",         # Identificar ERP/CRM/Ferramentas atuais
+        "identify_automation_goal",    # O que desejam automatizar primeiro
+        "identify_urgency"             # Urgência e impacto financeiro
     ]
 
     def __init__(self):
@@ -34,16 +34,18 @@ class OrchestratorService:
             return {"signals": [], "pains": [], "lead_profile": "unknown", "structured_data": {}}
 
     def _validate_analysis(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Valida se os dados extraídos pela IA fazem sentido operacional."""
-        # Garantir campos obrigatórios
-        required_fields = ["signals", "pains", "lead_profile", "structured_data"]
+        """Valida se os dados extraídos pela IA fazem sentido operacional para a Fluxon."""
+        # Garantir campos obrigatórios Fluxon
+        required_fields = ["signals", "pains", "current_stack", "automation_opportunity", "lead_profile", "structured_data"]
         for field in required_fields:
             if field not in data:
-                data[field] = [] if "s" in field else {} if "data" in field else "unknown"
+                data[field] = [] if isinstance(data.get(field), list) else {} if "data" in field else "unknown"
         
-        # Limpar sinais alucinados (muito longos ou com caracteres estranhos)
-        data["signals"] = [s[:50] for s in data["signals"] if len(s) > 2]
-        data["pains"] = [p[:100] for p in data["pains"] if len(p) > 2]
+        # Limpar sinais alucinados
+        if isinstance(data.get("signals"), list):
+            data["signals"] = [s[:50] for s in data["signals"] if len(str(s)) > 2]
+        if isinstance(data.get("pains"), list):
+            data["pains"] = [p[:100] for p in data["pains"] if len(str(p)) > 2]
         
         return data
 

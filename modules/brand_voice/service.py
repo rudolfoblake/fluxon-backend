@@ -3,16 +3,16 @@ from typing import Dict, Any
 class BrandVoiceService:
     PROFILES = {
         "consultive": {
-            "guideline": "Foque em entender o processo atual. Use linguagem que demonstre competência em eficiência operacional.",
-            "writing_style": "Conciso, observador e estratégico."
+            "guideline": "Foque em identificar 'dinheiro parado' em processos manuais. Use a filosofia da Fluxon sobre pastas de pendências que crescem.",
+            "writing_style": "Estrategista, observador, fala de ROI e eficiência."
+        },
+        "technical": {
+            "guideline": "Foque em integrações (API, ERP, CRM) e como a IA da Fluxon se conecta à stack existente sem 'reescrever o mundo'.",
+            "writing_style": "Pragmático, focado em conectividade e precisão de dados."
         },
         "executive": {
-            "guideline": "Foque em ROI, escala e resultados de alto nível. Seja direto e respeite o tempo do interlocutor.",
-            "writing_style": "Formal, direto e focado em valor."
-        },
-        "operational": {
-            "guideline": "Foque em gargalos técnicos, integração e redução de erros manuais.",
-            "writing_style": "Pragmático, técnico e focado em workflow."
+            "guideline": "Foque em escala sem caos, redução de custos ocultos e visibilidade em tempo real para tomada de decisão.",
+            "writing_style": "Direto, focado em resultados de alto nível e visão estratégica."
         }
     }
 
