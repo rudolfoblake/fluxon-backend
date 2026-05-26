@@ -1,3 +1,4 @@
+import uuid
 from loguru import logger
 from modules.whatsapp.schemas import EvolutionWebhookPayload
 from modules.whatsapp.client import EvolutionClient
@@ -7,7 +8,6 @@ from modules.crm.hubspot_service import HubSpotService
 from core.repository import SessionRepository
 from core.retry_service import RetryService
 import asyncio
-import uuid
 
 class ConversationService:
     def __init__(self):
@@ -33,31 +33,46 @@ class ConversationService:
 
         # 1. Recuperar Sessão e Memória Operacional
         session = await self.repo.get_session(phone)
-        session.history.append({
+        
+        # Criar entrada de histórico
+        history_entry = {
             "role": "user", 
             "content": message_text, 
             "timestamp": norm_msg.timestamp,
             "type": norm_msg.type,
             "correlation_id": correlation_id,
             "media_metadata": norm_msg.media_metadata
-        })
+        }
+        
+        # Garantir que history seja uma lista e adicionar entrada
+        current_history = list(session.history) if session.history else []
+        current_history.append(history_entry)
+        session.history = current_history
 
         # 2. Orquestração: Análise de Inteligência Operacional Profunda
         try:
             analysis = await self.orchestrator.analyze_input(message_text, session.operational_context)
             
             # Merge de Inteligência Específica Fluxon
-            session.operational_context["signals"] = list(set(session.operational_context.get("signals", []) + analysis.get("signals", [])))
-            session.operational_context["pains"] = list(set(session.operational_context.get("pains", []) + analysis.get("pains", [])))
-            session.operational_context["current_stack"] = list(set(session.operational_context.get("current_stack", []) + analysis.get("current_stack", [])))
-            session.operational_context["lead_profile"] = analysis.get("lead_profile", session.operational_context.get("lead_profile"))
+            operational_context = dict(session.operational_context) if session.operational_context else {}
+            
+            operational_context["signals"] = list(set(operational_context.get("signals", []) + analysis.get("signals", [])))
+            operational_context["pains"] = list(set(operational_context.get("pains", []) + analysis.get("pains", [])))
+            operational_context["current_stack"] = list(set(operational_context.get("current_stack", []) + analysis.get("current_stack", [])))
+            operational_context["lead_profile"] = analysis.get("lead_profile", operational_context.get("lead_profile"))
+            
+            session.operational_context = operational_context
             
             # Automações detectadas
+            automation_insights = list(session.automation_insights) if session.automation_insights else []
             if analysis.get("automation_opportunity"):
-                session.automation_insights.append(analysis.get("automation_opportunity"))
+                automation_insights.append(analysis.get("automation_opportunity"))
+            session.automation_insights = automation_insights
             
             # Update dados estruturados (Revenue, etc)
-            session.collected_data.update(analysis.get("structured_data", {}))
+            collected_data = dict(session.collected_data) if session.collected_data else {}
+            collected_data.update(analysis.get("structured_data", {}))
+            session.collected_data = collected_data
             
             logger.info(f"[{correlation_id}] Fluxon Intelligence: Perfil {session.operational_context['lead_profile']} | Sinais {analysis.get('signals')}")
         except Exception as e:
@@ -104,7 +119,17 @@ class ConversationService:
         # 6. Execução da Resposta
         try:
             await self.whatsapp_client.send_message(phone, response_text)
-            session.history.append({"role": "assistant", "content": response_text, "correlation_id": correlation_id})
+            
+            # Atualizar histórico com a resposta do assistente
+            assistant_entry = {
+                "role": "assistant", 
+                "content": response_text, 
+                "correlation_id": correlation_id
+            }
+            current_history = list(session.history)
+            current_history.append(assistant_entry)
+            session.history = current_history
+            
         except Exception as e:
             logger.error(f"[{correlation_id}] WhatsApp Send Error: {e}")
         

@@ -1,11 +1,11 @@
+from loguru import logger
+import time
 from fastapi import FastAPI, Depends, Request
 from config.settings import settings
 from core.security import validate_webhook_token
 from modules.whatsapp.router import router as whatsapp_router
 from modules.whatsapp.schemas import EvolutionWebhookPayload
 from modules.conversations.service import ConversationService
-from loguru import logger
-import time
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -38,16 +38,20 @@ async def whatsapp_webhook(
 
 @app.on_event("startup")
 async def startup_event():
-    from core.models import init_db
+    from core.database import init_db
     from modules.whatsapp.client import EvolutionClient
     from core.retry_service import RetryService
     from modules.crm.hubspot_service import HubSpotService
     import asyncio
     
-    await init_db()
-    logger.info("Database initialized")
+    # 1. Inicializar Banco de Dados
+    try:
+        await init_db()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
     
-    # Evolution API Bootstrap
+    # 2. Evolution API Bootstrap
     try:
         whatsapp = EvolutionClient()
         await whatsapp.ensure_instance()
@@ -55,10 +59,11 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Evolution API Bootstrap failed: {e}")
 
-    # Background Retry Task
+    # 3. Background Retry Task
     async def retry_worker():
         retry_service = RetryService()
         crm = HubSpotService()
+        logger.info("Starting Retry Worker...")
         while True:
             try:
                 tasks = await retry_service.get_pending_tasks()

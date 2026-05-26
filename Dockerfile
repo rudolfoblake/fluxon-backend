@@ -17,6 +17,7 @@ COPY . .
 
 # Set environment variables
 ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
 
 # Expose port
 EXPOSE 8000

@@ -60,8 +60,15 @@ FLUXON é construído com uma arquitetura de **Monolito Modular**, priorizando p
     -   Acesse `http://localhost:8000/whatsapp/qrcode` no seu navegador.
     -   Escaneie o QR Code com o WhatsApp do seu negócio.
 
-4.  **Verificar Status**:
-    -   Acesse `http://localhost:8000/whatsapp/status` para confirmar a conexão.
+4. **Configuração de Webhook (Produção Local)**:
+    - Se estiver rodando localmente e precisar receber webhooks da Evolution API, utilize o Ngrok:
+    ```bash
+    ngrok http 8000
+    ```
+    - Copie a URL gerada (ex: `https://abcd.ngrok-free.app`) e atualize no seu `.env`:
+    ```env
+    WEBHOOK_GLOBAL_URL=https://abcd.ngrok-free.app/whatsapp/webhook
+    ```
 
 ---
 
@@ -85,6 +92,23 @@ Todos os leads aparecem na aba "Contatos" do seu HubSpot.
 ---
 
 ## 📝 Changelog
+
+### [v0.8.0] - 2026-05-26 (Production Hardening & Clean Architecture)
+- **Clean Architecture Refactor**: Separação completa de `core/database.py` e `core/models.py`.
+- **SQLAlchemy State Fix**: Implementação de re-atribuição explícita de campos JSON para garantir persistência robusta.
+- **Robust Startup**: Inicialização do banco de dados e worker de retry com tratamento de exceções global.
+- **Import Cleanup**: Organização sistemática de pacotes e imports para eliminar erros de linting e runtime.
+- **Docker Optimization**: `PYTHONUNBUFFERED` e `PYTHONPATH` otimizados para produção.
+
+### [v0.7.0] - 2026-05-26 (Operational Refinement)
+- **Data Layer Refactor**: Separação clara entre `core/database.py` (engine/sessão) e `core/models.py` (esquemas).
+- **Orchestration Priority**: Ajuste nos objetivos do orquestrador para priorizar diagnóstico de gargalos e stack tecnológica.
+- **Improved Retry Logic**: Otimização do worker de background para sincronização resiliente.
+- **Documentation Update**: Instruções detalhadas para túnel Ngrok e configuração de webhooks para o primeiro cliente.
+
+### [v0.6.0] - 2026-05-26 (Fluxon Identity Adaptation)
+- **Branding Alignment**: Renomeação de referências legadas para a identidade FLUXON.
+- **Refined System Prompts**: Atualização dos prompts da IA para refletir a autoridade da marca.
 
 ### [v0.5.0] - 2026-05-26 (Production Stabilization)
 - **Lightweight Retry System**: Implementação de fila de re-tentativa local (SQLite) para falhas de CRM e IA com backoff exponencial.

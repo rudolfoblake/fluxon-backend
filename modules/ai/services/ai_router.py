@@ -1,9 +1,9 @@
 from typing import Dict, Any, Optional
-from modules.ai.providers.base import BaseAIProvider
+from loguru import logger
+from config.settings import settings
 from modules.ai.providers.openai_provider import OpenAIProvider
 from modules.ai.providers.anthropic_provider import AnthropicProvider
-from config.settings import settings
-from loguru import logger
+from modules.ai.providers.base import BaseAIProvider
 
 class AIRouter:
     def __init__(self):

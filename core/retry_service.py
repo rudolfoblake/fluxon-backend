@@ -1,5 +1,6 @@
 from sqlalchemy.future import select
-from core.models import AsyncSessionLocal, RetryTask
+from core.database import AsyncSessionLocal
+from core.models import RetryTask
 from datetime import datetime, timedelta
 from loguru import logger
 import uuid

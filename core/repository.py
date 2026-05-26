@@ -1,5 +1,7 @@
+from typing import Optional
 from sqlalchemy.future import select
-from core.models import AsyncSessionLocal, ConversationSession
+from core.database import AsyncSessionLocal
+from core.models import ConversationSession
 from loguru import logger
 
 class SessionRepository:
@@ -15,7 +17,7 @@ class SessionRepository:
                     state="START", 
                     collected_data={}, 
                     history=[],
-                    operational_context={"signals": [], "pains": [], "insights": []},
+                    operational_context={"signals": [], "pains": [], "insights": [], "current_stack": []},
                     pending_objectives=OrchestratorService.OBJECTIVES
                 )
                 db.add(session)
@@ -26,6 +28,5 @@ class SessionRepository:
     @staticmethod
     async def save_session(session: ConversationSession):
         async with AsyncSessionLocal() as db:
-            db.add(session)
             await db.merge(session)
             await db.commit()
