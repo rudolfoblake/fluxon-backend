@@ -36,20 +36,34 @@ class HubSpotService:
             return None
 
     async def create_or_update_contact(self, phone: str, properties: Dict[str, Any]) -> Dict[str, Any]:
+        if not self.api_key:
+            logger.error("HubSpot API Key missing. Skipping sync.")
+            return {"error": "API Key missing"}
+
         existing = await self.get_contact_by_phone(phone)
         
-        async with httpx.AsyncClient() as client:
-            if existing:
-                contact_id = existing["id"]
-                url = f"{self.base_url}/objects/contacts/{contact_id}"
-                response = await client.patch(url, headers=self.headers, json={"properties": properties})
-            else:
-                url = f"{self.base_url}/objects/contacts"
-                properties["phone"] = phone
-                response = await client.post(url, headers=self.headers, json={"properties": properties})
-            
-            response.raise_for_status()
-            return response.json()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                if existing:
+                    contact_id = existing["id"]
+                    url = f"{self.base_url}/objects/contacts/{contact_id}"
+                    logger.info(f"Updating HubSpot contact: {contact_id}")
+                    response = await client.patch(url, headers=self.headers, json={"properties": properties})
+                else:
+                    url = f"{self.base_url}/objects/contacts"
+                    logger.info(f"Creating new HubSpot contact for phone: {phone}")
+                    # Ensure phone is in properties for new contacts
+                    properties["phone"] = phone
+                    response = await client.post(url, headers=self.headers, json={"properties": properties})
+                
+                if response.status_code not in [200, 201]:
+                    logger.error(f"HubSpot API Error ({response.status_code}): {response.text}")
+                    response.raise_for_status()
+                
+                return response.json()
+            except Exception as e:
+                logger.error(f"Failed to sync with HubSpot: {str(e)}")
+                raise e
 
     async def add_note_to_contact(self, contact_id: str, content: str):
         url = f"{self.base_url}/objects/notes"

@@ -4,7 +4,7 @@ from typing import Optional
 class Settings(BaseSettings):
     # API Configuration
     PROJECT_NAME: str = "FLUXON"
-    VERSION: str = "0.1.0"
+    VERSION: str = "0.8.0"
     DEBUG: bool = False
     WEBHOOK_SECRET_TOKEN: str
 
